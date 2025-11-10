@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
-from database.connection import SessionLocal
+from backend.database.connection import SessionLocal
 from database.models import Analysis
 from utils.auth import get_current_user_claims
 from utils.tenant import get_tenant_id

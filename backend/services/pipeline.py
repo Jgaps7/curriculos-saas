@@ -1,7 +1,7 @@
-from .ai_service import OpenAIClient
-from .pdf_service import read_pdf, read_pdf_bytes
+from backend.services.ai_service import OpenAIClient
+from backend.services.pdf_service import read_pdf, read_pdf_bytes
 from sqlalchemy.orm import Session
-from database.models import Resume, Analysis
+from backend.database.models import Resume, Analysis
 import uuid
 import traceback
 

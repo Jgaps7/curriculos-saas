@@ -1,8 +1,8 @@
 from fastapi import HTTPException, Request, Depends
 from sqlalchemy.orm import Session
-from database.connection import SessionLocal
-from database.models import Membership
-from .auth import get_current_user_claims
+from backend.database.connection import SessionLocal
+from backend.database.models import Membership
+from backend.utils.auth import get_current_user_claims
 
 
 def get_db():

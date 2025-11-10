@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from dotenv import load_dotenv
 import logging
-from .routes import analysis
+from backend.routes import jobs, resumes, analysis
 
 # Carrega variáveis de ambiente (.env)
 load_dotenv()

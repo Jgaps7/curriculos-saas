@@ -1,7 +1,7 @@
 from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, Request
 from sqlalchemy.orm import Session
-from database.connection import SessionLocal
-from database.models import Job
+from backend.database.connection import SessionLocal
+from backend.database.models import Job
 from services.pipeline import process_resume  # versão síncrona (para debug)
 from tasks.tasks import enqueue_analysis       # nova versão assíncrona
 from utils.auth import get_current_user_claims

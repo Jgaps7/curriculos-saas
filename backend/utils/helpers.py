@@ -1,5 +1,3 @@
-# backend/utils/helpers.py
-
 import re
 from typing import Dict, List
 

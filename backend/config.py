@@ -1,9 +1,3 @@
-"""
-config.py
-----------------------------------
-Responsável por carregar e validar todas as variáveis de ambiente do projeto SaaS.
-"""
-
 import os
 from dotenv import load_dotenv
 from pydantic import BaseSettings, Field, ValidationError

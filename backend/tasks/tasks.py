@@ -5,10 +5,10 @@ from redis import Redis
 from rq import Queue
 from sqlalchemy.orm import Session
 from contextlib import contextmanager
-from database.connection import SessionLocal
-from database.models import Resume, Job, Analysis
-from services.pdf_service import read_pdf_bytes
-from services.ai_service import OpenAIClient
+from backend.database.connection import SessionLocal
+from backend.database.models import Resume, Job, Analysis
+from backend.services.pdf_service import read_pdf_bytes
+from backend.services.ai_service import OpenAIClient
 
 ai = OpenAIClient()
 

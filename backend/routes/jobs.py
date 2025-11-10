@@ -1,9 +1,7 @@
-# backend/routes/jobs.py
-
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
-from database.connection import SessionLocal
-from database.models import Job
+from backend.database.connection import SessionLocal
+from backend.database.models import Job
 from utils.auth import get_current_user_claims
 from utils.tenant import get_tenant_id
 import uuid
