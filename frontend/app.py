@@ -57,7 +57,7 @@ with st.sidebar:
         st.session_state.jobs_cache = []
         st.session_state.resumes_cache = []
         st.session_state.analysis_cache = []
-        st.experimental_rerun()
+        st.rerun()
 
 st.title("🧠 Currículos SaaS – Painel")
 
