@@ -1,0 +1,37 @@
+.env
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.sqlite3
+
+# Arquivos de ambiente e credenciais
+.env.local
+.env.dev
+.env.prod
+.DS_Store
+
+# IDEs e editores
+.vscode/
+.idea/
+*.code-workspace
+
+# Cache e logs
+*.log
+logs/
+cache/
+__pycache__/
+
+# Build temporários
+*.egg-info/
+build/
+dist/
+
+# Dados e uploads locais
+uploads/
+tmp/
+curriculosd/
+
+# Configs pessoais
+*.bak
+*.old
