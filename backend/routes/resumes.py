@@ -2,10 +2,10 @@ from fastapi import APIRouter, UploadFile, File, Form, Depends, HTTPException, R
 from sqlalchemy.orm import Session
 from backend.database.connection import SessionLocal
 from backend.database.models import Job
-from services.pipeline import process_resume  # versão síncrona (para debug)
-from tasks.tasks import enqueue_analysis       # nova versão assíncrona
-from utils.auth import get_current_user_claims
-from utils.tenant import get_tenant_id
+from backend.services.pipeline import process_resume  # versão síncrona (para debug)
+from backend.tasks.tasks import enqueue_analysis       # nova versão assíncrona
+from backend.utils.auth import get_current_user_claims
+from backend.utils.tenant import get_tenant_id
 
 router = APIRouter(prefix="/resumes", tags=["Resumes"])
 

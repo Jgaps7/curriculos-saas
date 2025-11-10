@@ -1,9 +1,10 @@
 from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 from backend.database.connection import SessionLocal
-from database.models import Analysis
-from utils.auth import get_current_user_claims
-from utils.tenant import get_tenant_id
+from backend.database.models import Analysis
+from backend.utils.auth import get_current_user_claims
+from backend.utils.tenant import get_tenant_id
+
 
 router = APIRouter(prefix="/analysis", tags=["Analysis"])
 

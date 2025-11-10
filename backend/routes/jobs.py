@@ -2,8 +2,8 @@ from fastapi import APIRouter, Depends, Request, HTTPException
 from sqlalchemy.orm import Session
 from backend.database.connection import SessionLocal
 from backend.database.models import Job
-from utils.auth import get_current_user_claims
-from utils.tenant import get_tenant_id
+from backend.utils.auth import get_current_user_claims
+from backend.utils.tenant import get_tenant_id
 import uuid
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])

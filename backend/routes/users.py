@@ -1,8 +1,6 @@
-# backend/routes/users.py
-
 from fastapi import APIRouter, Depends
-from utils.auth import get_current_user_claims
-from utils.tenant import get_tenant_id
+from backend.utils.auth import get_current_user_claims
+from backend.utils.tenant import get_tenant_id
 
 router = APIRouter(prefix="/users", tags=["Users"])
 
