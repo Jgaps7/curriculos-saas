@@ -13,7 +13,7 @@ st.set_page_config(page_title="Currículos SaaS", layout="wide")
 # =========================
 def init_state():
     ss = st.session_state
-    ss.setdefault("api_url", "http://localhost:8000")
+    ss.setdefault("api_url", "https://curriculos-saas.onrender.com")
     ss.setdefault("token", "")
     ss.setdefault("tenant_id", "")
     ss.setdefault("jobs_cache", [])
@@ -30,13 +30,16 @@ def headers():
     }
 
 def api_get(path, params=None):
-    r = requests.get(f"{st.session_state.api_url}{path}", headers=headers(), params=params, timeout=60)
+    base = st.session_state.api_url.rstrip("/")
+    r = requests.get(f"{base}{path}", headers=headers(), params=params, timeout=60)
+
     if not r.ok:
         raise RuntimeError(f"GET {path} -> {r.status_code}: {r.text}")
     return r.json()
 
 def api_post(path, json_payload=None, files=None, data=None):
-    r = requests.post(f"{st.session_state.api_url}{path}", headers=headers(), json=json_payload, files=files, data=data, timeout=120)
+    base = st.session_state.api_url.rstrip("/")
+    r = requests.post(f"{base}{path}", headers=headers(), json=json_payload, files=files, data=data, timeout=120)
     if not r.ok:
         raise RuntimeError(f"POST {path} -> {r.status_code}: {r.text}")
     return r.json()
@@ -259,8 +262,6 @@ with tabs[3]:
 with tabs[4]:
     st.subheader("Configurações e Ajuda")
     st.markdown("""
-- Defina **API URL**, **Supabase JWT** e **Tenant ID** na barra lateral.
-- As abas consomem a API com os headers corretos.
-- Em produção, troque o `allow_origins` do CORS (no backend) para seus domínios.
-- Para monitorar a fila: `rq worker --url $REDIS_URL default`.
+- API pública: https://curriculos-saas.onrender.com
+
 """)
