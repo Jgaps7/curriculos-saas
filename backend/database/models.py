@@ -42,10 +42,11 @@ class Job(Base):
 
     id = Column(String, primary_key=True)
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
-    name = Column(String, nullable=False)
-    main_activities = Column(Text)
-    prerequisites = Column(Text)
-    differentials = Column(Text)
+    title = Column(String, nullable=False)
+    description = Column(Text, nullable=True)              # 🔹 ADICIONADO
+    main_activities = Column(Text, nullable=True)
+    prerequisites = Column(Text, nullable=True)
+    differentials = Column(Text, nullable=True)
     criteria = Column(JSON, default=list)
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -63,11 +64,12 @@ class Resume(Base):
     id = Column(String, primary_key=True)
     tenant_id = Column(String, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False)
     job_id = Column(String, ForeignKey("jobs.id", ondelete="CASCADE"), nullable=False)
-    file_url = Column(Text)
-    raw_text = Column(Text)
-    summary = Column(Text)
-    opinion = Column(Text)
-    score = Column(Float)
+    candidate_name = Column(String, nullable=True)          # 🔹 ADICIONADO
+    file_url = Column(Text, nullable=True)
+    raw_text = Column(Text, nullable=True)
+    summary = Column(Text, nullable=True)
+    opinion = Column(Text, nullable=True)
+    score = Column(Float, nullable=True)
     status = Column(String, default="queued")
     created_at = Column(DateTime(timezone=True), server_default=func.now())
 
@@ -75,6 +77,7 @@ class Resume(Base):
     tenant = relationship("Tenant")
     job = relationship("Job", back_populates="resumes")
     analysis = relationship("Analysis", back_populates="resume", cascade="all, delete-orphan")
+
 
 
 # ======================================================

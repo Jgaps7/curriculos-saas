@@ -8,10 +8,6 @@ import uuid
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
-
-# ==================================================
-# 🧩 Dependência padrão de sessão DB
-# ==================================================
 def get_db():
     db = SessionLocal()
     try:
@@ -19,10 +15,6 @@ def get_db():
     finally:
         db.close()
 
-
-# ==================================================
-# 🔹 LISTAR VAGAS (seguro por tenant)
-# ==================================================
 @router.get("/")
 def list_jobs(
     request: Request,
@@ -30,20 +22,27 @@ def list_jobs(
     claims: dict = Depends(get_current_user_claims),
     tenant_id: str = Depends(get_tenant_id)
 ):
-    """
-    Lista todas as vagas do tenant do usuário autenticado.
-    """
     jobs = db.query(Job).filter(Job.tenant_id == tenant_id).order_by(Job.created_at.desc()).all()
 
     if not jobs:
         return {"message": "Nenhuma vaga encontrada."}
 
-    return {"tenant_id": tenant_id, "jobs": jobs}
+    return {
+        "tenant_id": tenant_id,
+        "jobs": [
+            {
+                "id": j.id,
+                "title": j.title,
+                "main_activities": j.main_activities,
+                "prerequisites": j.prerequisites,
+                "differentials": j.differentials,
+                "criteria": j.criteria,
+                "created_at": j.created_at,
+            }
+            for j in jobs
+        ],
+    }
 
-
-# ==================================================
-# 🔹 CRIAR VAGA (seguro por tenant)
-# ==================================================
 @router.post("/")
 def create_job(
     job: dict,
@@ -51,16 +50,13 @@ def create_job(
     claims: dict = Depends(get_current_user_claims),
     tenant_id: str = Depends(get_tenant_id)
 ):
-    """
-    Cria uma nova vaga associada ao tenant autenticado.
-    """
-    if "name" not in job:
-        raise HTTPException(400, "O campo 'name' é obrigatório.")
+    if "title" not in job:
+        raise HTTPException(400, "O campo 'title' é obrigatório.")
 
     job_obj = Job(
         id=str(uuid.uuid4()),
-        tenant_id=tenant_id,  # 🔒 vincula ao tenant do usuário
-        name=job["name"],
+        tenant_id=tenant_id,
+        title=job["title"],
         main_activities=job.get("main_activities", ""),
         prerequisites=job.get("prerequisites", ""),
         differentials=job.get("differentials", ""),
