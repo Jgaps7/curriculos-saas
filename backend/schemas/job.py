@@ -1,9 +1,16 @@
 from pydantic import BaseModel, Field
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Optional
+
+
+class JobCriteria(BaseModel):
+    name: str
+    weight: float
+    description: Optional[str] = None
+
 
 class JobCreate(BaseModel):
-    name: str
+    title: str
     main_activities: str = ""
     prerequisites: str = ""
     differentials: str = ""
-    criteria: List[Dict[str, Any]] = Field(default_factory=list)
+    criteria: List[JobCriteria] = Field(default_factory=list)

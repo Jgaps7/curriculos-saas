@@ -164,7 +164,7 @@ with tabs[1]:
     if submitted:
         try:
             payload = {
-                "name": name,
+                "title": name,
                 "main_activities": main_activities,
                 "prerequisites": prerequisites,
                 "differentials": differentials,
