@@ -6,7 +6,7 @@ from backend.database.models import Job
 from backend.utils.auth import get_current_user_claims
 from backend.utils.tenant import get_tenant_id
 from backend.schemas.job import JobCreate
-import uuid
+import uuid, json
 
 router = APIRouter(prefix="/jobs", tags=["Jobs"])
 
@@ -40,8 +40,8 @@ def list_jobs(
                     "main_activities": j.main_activities,
                     "prerequisites": j.prerequisites,
                     "differentials": j.differentials,
-                    "criteria": j.criteria,
-                    "created_at": j.created_at,
+                    "criteria": j.criteria if isinstance(j.criteria, list) else [],
+                    "created_at": j.created_at.isoformat() if getattr(j, "created_at", None) else None,
                 }
                 for j in jobs
             ],
@@ -56,22 +56,28 @@ def create_job(
     claims: dict = Depends(get_current_user_claims),
     tenant_id: str = Depends(get_tenant_id)
 ):
+    if not tenant_id:
+        raise HTTPException(status_code=400, detail="Tenant ID inválido ou ausente.")
     try:
+        criteria_safe = json.loads(json.dumps(job.criteria)) if job.criteria else []
+
         job_obj = Job(
             id=str(uuid.uuid4()),
             tenant_id=tenant_id,
-            title=job.title,                       # <- AQUI: atributo, não dict
-            main_activities=job.main_activities,   # <- idem
-            prerequisites=job.prerequisites,
-            differentials=job.differentials,
-            criteria=[
-                c if isinstance(c, dict) else c.dict()
-                for c in (job.criteria or [])
-            ],
+            title=job.title,
+            description=job.main_activities or "",                       
+            main_activities=job.main_activities or "",   
+            prerequisites=job.prerequisites or "",
+            differentials=job.differentials or "",
+            criteria=criteria_safe,
+            # description pode ser opcional dependendo da tabela:
+            **({"description": job.main_activities} if hasattr(Job, "description") else {}),
         )
         db.add(job_obj)
         db.commit()
         db.refresh(job_obj)
+        
+
 
         # retorne JSON serializável (evita 500 por objeto ORM)
         return {
@@ -83,9 +89,13 @@ def create_job(
                 "prerequisites": job_obj.prerequisites,
                 "differentials": job_obj.differentials,
                 "criteria": job_obj.criteria,
-                "created_at": job_obj.created_at,
+                "created_at": job_obj.created_at.isoformat() if getattr(job_obj, "created_at", None) else None,
             },
         }
     except Exception as e:
         db.rollback()
+        print(f"[ERROR][create_job]: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Erro ao criar vaga: {e}")
+    
+    finally:
+        db.close()
