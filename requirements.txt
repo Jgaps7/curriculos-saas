@@ -11,4 +11,3 @@ openai
 PyMuPDF
 pydantic
 python-multipart
-json
