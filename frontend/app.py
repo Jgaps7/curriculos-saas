@@ -155,34 +155,63 @@ with tabs[1]:
         differentials = st.text_area("Diferenciais")
 
         st.markdown("##### Critérios (peso deve somar 100%)")
-        num = st.number_input("Qtd critérios", 1, 10, 5)
-        crits = []
+        num = st.number_input("Qtd critérios", min_value=1, max_value=10, value=5, key="num_criterios")
+        crits_preview = []
         for i in range(int(num)):
             c1, c2 = st.columns([2, 1])
             nm = c1.text_input(f"Nome do critério {i+1}", key=f"crit_nm_{i}")
-            pw = c2.number_input(f"Peso {i+1} (%)", 0, 100, 0, key=f"crit_pw_{i}")
+            pw = c2.number_input(
+                f"Peso {i+1} (%)",
+                min_value=0,
+                max_value=100,
+                value=0,
+                key=f"crit_pw_{i}"
+            )
             ds = st.text_area(f"Descrição {i+1}", key=f"crit_ds_{i}")
             if nm:
-                crits.append({"criterio": nm, "peso": pw, "descricao": ds})
-        total = sum(c.get("peso", 0) for c in crits)
-        st.caption(f"Soma dos pesos: {total}%")
-        submitted = st.form_submit_button("Salvar vaga", disabled=not name or total != 100)
+                crits_preview.append({"criterio": nm, "peso": pw, "descricao": ds})
+        total_preview = sum(int(c["peso"]) for c in crits_preview)
+        st.caption(f"Soma (pré-visualização): {total_preview}%")
+        submitted = st.form_submit_button("Salvar vaga")
 
-    if submitted:
-        try:
-            payload = {
-                "title": name,
-                "main_activities": main_activities,
-                "prerequisites": prerequisites,
-                "differentials": differentials,
-                "criteria": crits
-            }
-            resp = api_post("/jobs", json_payload=payload)
-            st.success("✅ Vaga criada!")
-            st.json(resp)
-            st.session_state.jobs_cache = []  # invalida cache
-        except Exception as e:
-            st.error(f"Falha ao criar vaga: {e}")
+    crits = []
+    num_criterios = int(st.session_state.get("num_criterios", 0))
+
+    for i in range(num_criterios):
+            nm = st.session_state.get(f"crit_nm_{i}", "").strip()
+            pw = st.session_state.get(f"crit_pw_{i}", 0)
+            ds = st.session_state.get(f"crit_ds_{i}", "")
+
+            if nm:
+                crits.append({
+                    "criterio": nm,
+                    "peso": int(pw),
+                    "descricao": ds
+                })
+
+    total = sum(c["peso"] for c in crits)
+
+    if not name:
+            st.error("❌ O nome da vaga é obrigatório.")
+    elif total != 100:
+            st.error(f"❌ A soma dos pesos precisa ser 100%. Soma atual: {total}%.")
+    elif not crits:
+            st.error("❌ Defina ao menos um critério com nome.")
+    else:
+            try:
+                payload = {
+                    "title": name,
+                    "main_activities": main_activities,
+                    "prerequisites": prerequisites,
+                    "differentials": differentials,
+                    "criteria": crits
+                }
+                resp = api_post("/jobs", json_payload=payload)
+                st.success("✅ Vaga criada!")
+                st.json(resp)
+                st.session_state.jobs_cache = []  # invalida cache
+            except Exception as e:
+                st.error(f"Falha ao criar vaga: {e}")
 
     st.markdown("#### Minhas Vagas")
     try:
@@ -206,19 +235,44 @@ with tabs[2]:
         st.warning(f"Carregar vagas: {e}")
         jobs = []
 
-    job_map = {j.get("name") or j.get("title"): j.get("id") for j in jobs} if jobs else {}
-    job_name = st.selectbox("Selecione a vaga", list(job_map.keys())) if job_map else None
+    job_map = {}
+    for j in jobs:
+        title = j.get("title") or j.get("name")
+        jid   = j.get("id")
+        if title and jid:
+            job_map[title] = jid
+    job_name = st.selectbox("Selecione a vaga", list(job_map.keys())) if job_map else ["Nenhuma vaga disponível"]
     pdf = st.file_uploader("Enviar PDF do currículo", type=["pdf"])
-    if st.button("📤 Enviar", disabled=not (pdf and job_name)):
+    enviar = st.button("📤 Enviar currículo")
+    if enviar:
+        # 1. Validações antes do envio
+        if not job_map:
+            st.error("❌ Nenhuma vaga cadastrada. Cadastre uma vaga primeiro.")
+            st.stop()
+
+        if job_name not in job_map:
+            st.error("❌ Selecione uma vaga válida.")
+            st.stop()
+
+        if pdf is None:
+            st.error("❌ Envie um arquivo PDF antes de continuar.")
+            st.stop()
+
+        if not pdf.name.lower().endswith(".pdf"):
+            st.error("❌ O arquivo enviado não é um PDF.")
+            st.stop()
+
         try:
             job_id = job_map[job_name]
-            files = {"pdf": (pdf.name, pdf.getvalue(), "application/pdf")}
+            files = {"pdf": (pdf.name, pdf, "application/pdf")}
             data = {"job_id": job_id}
             resp = api_post("/resumes/upload", files=files, data=data)
-            st.success("Enfileirado com sucesso!")
+            st.success("Currículo enviado e enfileirado com sucesso!")
             st.json(resp)
+        except requests.exceptions.ConnectionError:
+            st.error("❌ Falha de conexão com a API (Render pode estar dormindo).")
         except Exception as e:
-            st.error(f"Falha no upload: {e}")
+            st.error(f"❌ Falha no upload: {e}")
 
     st.markdown("---")
     st.markdown("#### Status de Processamento")
