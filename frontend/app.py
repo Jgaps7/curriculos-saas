@@ -22,8 +22,11 @@ def init_state():
 init_state()
 
 def headers():
-    if not st.session_state.token or not st.session_state.tenant_id:
-        return {}
+    if not st.session_state.token:
+        raise RuntimeError("Token JWT não configurado. Preencha o campo 'Supabase JWT' na barra lateral.")
+    if not st.session_state.tenant_id:
+        raise RuntimeError("Tenant ID não configurado. Preencha o campo 'Tenant ID' na barra lateral.")
+
     return {
         "Authorization": f"Bearer {st.session_state.token}",
         "X-Tenant-Id": st.session_state.tenant_id
@@ -49,15 +52,19 @@ def api_post(path, json_payload=None, files=None, data=None):
 # =========================
 with st.sidebar:
     st.header("⚙️ Configurações")
-    st.session_state.api_url = st.text_input("API URL", value=st.session_state.api_url)
-    st.session_state.token = st.text_input("Supabase JWT", type="password", value=st.session_state.token)
-    st.session_state.tenant_id = st.text_input("Tenant ID", value=st.session_state.tenant_id)
+    st.session_state.api_url = st.text_input("API URL", value=st.session_state.api_url, help="URL base da API FastAPI (ex: https://curriculos-saas.onrender.com)",)
+    st.session_state.token = st.text_input("Supabase JWT", type="password", value=st.session_state.token, help="Cole aqui o JWT gerado para o usuário/tenant.")
+    st.session_state.tenant_id = st.text_input("Tenant ID", value=st.session_state.tenant_id, help="UUID do tenant cadastrado na tabela tenants.")
     st.markdown("---")
     if st.button("🔄 Atualizar dados"):
         st.session_state.jobs_cache = []
         st.session_state.resumes_cache = []
         st.session_state.analysis_cache = []
         st.rerun()
+
+        # Aviso global se estiver sem JWT/Tenant
+if not st.session_state.token or not st.session_state.tenant_id:
+    st.warning("⚠️ Preencha **Supabase JWT** e **Tenant ID** na barra lateral antes de usar o painel.")
 
 st.title("🧠 Currículos SaaS – Painel")
 
@@ -119,7 +126,7 @@ with tabs[0]:
     df = pd.DataFrame(analysis)
     if not df.empty:
         col2.metric("Currículos Analisados", df["resume_id"].nunique())
-        col3.metric("Média de Score", round(df["score"].dropna().mean(), 2) if "score" in df else 0)
+        col3.metric("Média de Score", round(df["score"].dropna().mean(), 2) if "score" in df and not df["score"].dropna().empty else 0)
         by_job = df.groupby("job_id")["resume_id"].nunique().reset_index().rename(columns={"resume_id": "curriculos"})
         col4.metric("Vaga com mais currículos", by_job.sort_values("curriculos", ascending=False).head(1)["curriculos"].iloc[0] if not by_job.empty else 0)
 
