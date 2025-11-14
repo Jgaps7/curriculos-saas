@@ -30,6 +30,23 @@ def get_tenant_id(
     user_id = claims.get("sub") or claims.get("user_id")
     if not user_id:
         raise HTTPException(status_code=401, detail="Invalid token (missing subject)")
+    
+    # ========================================
+    # 👑 VERIFICA SE É ADMIN
+    # ========================================
+    admin_membership = (
+        db.query(Membership)
+        .filter(
+            Membership.user_id == user_id,
+            Membership.role == "admin"
+        )
+        .first()
+    )
+    
+    # ✅ Admin pode acessar QUALQUER tenant
+    if admin_membership:
+        print(f"[ADMIN ACCESS] user={user_id} acessando tenant={tenant_id}")
+        return tenant_id
 
     # 🔍 Validação de membership via ORM
     member = (
