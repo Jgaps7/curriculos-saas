@@ -9,7 +9,7 @@ from backend.config import settings
 
 logger = logging.getLogger(__name__)
 
-SUPABASE_JWKS_URL = f"{os.getenv('SUPABASE_URL')}/auth/v1/keys"
+SUPABASE_JWKS_URL = f"{settings.SUPABASE_URL}/auth/v1/keys"
 
 _jwks_cache = {"data": None, "expires_at": 0}
 def _get_jwks() -> dict:
@@ -18,18 +18,33 @@ def _get_jwks() -> dict:
     if _jwks_cache["data"] and now < _jwks_cache["expires_at"]:
         return _jwks_cache["data"]
     try:
-        response = requests.get(SUPABASE_JWKS_URL, timeout=10)
+        logger.info(f"🔑 Buscando JWKS de: {SUPABASE_JWKS_URL}")
+        response = requests.get(SUPABASE_JWKS_URL, timeout=10, headers={
+                "Accept": "application/json",
+                "apikey": settings.SUPABASE_ANON_KEY,  # ✅ ADICIONADO
+                "User-Agent": "CurriculosSaaS/1.0"
+            })
+        if not response.ok:
+            logger.error(
+                f"❌ Erro ao buscar JWKS: {response.status_code} - "
+                f"Response: {response.text[:200]}"
+            )
         response.raise_for_status()
         data = response.json()
         _jwks_cache = {"data": data, "expires_at": now + 3600}
+        logger.info(f"✅ JWKS atualizado com sucesso ({len(data.get('keys', []))} chaves)")
         return data
-    except Exception as e:
+    except requests.exceptions.RequestException as e:
         # Se falhar, tenta usar cache antigo
         if _jwks_cache["data"]:
             logger.warning(f"⚠️ Falha ao atualizar JWKS, usando cache: {e}")
             return _jwks_cache["data"]
         logger.error(f"❌ Erro crítico ao buscar JWKS: {e}")
-        raise HTTPException(502, f"Erro ao buscar JWKS do Supabase: {e}")
+        raise HTTPException(
+            502, 
+            f"Erro ao buscar JWKS do Supabase. "
+            f"Verifique SUPABASE_URL e SUPABASE_ANON_KEY"
+        )
 
 def get_current_user_claims(request: Request) -> dict:
     auth_header = request.headers.get("Authorization", "")
