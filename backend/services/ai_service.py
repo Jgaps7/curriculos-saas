@@ -1,17 +1,30 @@
+import re
+import json
+import logging
 import os
 from openai import OpenAI
+from backend.config import settings
+
+logger = logging.getLogger(__name__)
 
 class OpenAIClient:
-    def __init__(self, model_id: str = os.getenv("OPENAI_MODEL", "gpt-4o-mini")):
-        self.model_id = model_id
-        self.client = OpenAI()
+    def __init__(self, model_id: str = None):
+        self.model_id = model_id or settings.OPENAI_MODEL
+        self.client = OpenAI(api_key=settings.OPENAI_API_KEY)
+        logger.info(f"✅ OpenAI Client inicializado (model={self.model_id})")
 
-    def _chat(self, messages, temperature=0.3, max_tokens=500):
-        resp = self.client.chat.completions.create(
-            model=self.model_id, messages=messages,
-            temperature=temperature, max_tokens=max_tokens
-        )
-        return resp.choices[0].message.content.strip()
+    def _chat(self, messages: list, temperature: float = 0.3, max_tokens: int = 500) -> str:
+        try:
+            resp = self.client.chat.completions.create(
+                model=self.model_id,
+                messages=messages,
+                temperature=temperature,
+                max_tokens=max_tokens
+            )
+            return resp.choices[0].message.content.strip()
+        except Exception as e:
+            logger.error(f"❌ Erro na chamada OpenAI: {e}")
+            raise
 
     def resume_cv(self, cv: str) -> str:
         prompt = f"""
@@ -31,7 +44,11 @@ Currículo:
         ])
 
     def generate_opinion(self, cv: str, job: dict) -> str:
-        job_text = f"{job.get('main_activities','')}\n{job.get('prerequisites','')}\n{job.get('differentials','')}"
+        job_text = (
+            f"{job.get('main_activities', '')}\n"
+            f"{job.get('prerequisites', '')}\n"
+            f"{job.get('differentials', '')}"
+        )
         prompt = f"""
 Analise criticamente o currículo versus a vaga.
 
@@ -58,7 +75,11 @@ Entregue com títulos:
             f"- {c.get('criterio','Sem nome')} ({int(c.get('peso',0))}%): {c.get('descricao','')}"
             for c in criterios
         )
-        job_text = f"{job.get('main_activities','')}\n{job.get('prerequisites','')}\n{job.get('differentials','')}"
+        job_text = (
+            f"{job.get('main_activities', '')}\n"
+            f"{job.get('prerequisites', '')}\n"
+            f"{job.get('differentials', '')}"
+        )
 
         prompt = f"""
 Avalie o currículo conforme os critérios e pesos da vaga abaixo.
@@ -73,21 +94,37 @@ Currículo:
 {cv}
 
 Instruções:
-- Atribua notas parciais de 0 a 10 por critério, aplique os pesos e calcule a nota final (0 a 10).
-- Retorne APENAS no formato: Pontuação Final: X.X
+- Atribua notas parciais de 0 a 10 por critério
+- Aplique os pesos e calcule a nota final (0 a 10)
+- Retorne APENAS um JSON no formato: {{"score": 7.5, "justificativa": "resumo"}}
+- OU no formato texto: Pontuação Final: X.X
 """
         content = self._chat([
-            {"role":"system","content":"Você calcula pontuações de forma rigorosa e padronizada."},
-            {"role":"user","content":prompt}
-        ], max_tokens=120)
-
-        # extração robusta (0..10)
-        import re
-        m = re.search(r"(?i)Pontuação Final[:\s]*([\d.,]+)", content)
-        if not m:
-            return 0.0
+            {"role": "system", "content": "Você calcula pontuações de forma rigorosa e padronizada."},
+            {"role": "user", "content": prompt}
+        ], max_tokens=300)
         try:
-            score = float(m.group(1).replace(",", "."))
+            # 1️⃣ Tenta JSON primeiro
+            data = json.loads(content)
+            score = float(data.get("score", 0))
+            logger.info(f"✅ Score extraído via JSON: {score}")
             return max(0.0, min(10.0, score))
-        except:
+    
+        except (json.JSONDecodeError, ValueError):
+            
+            match = re.search(r"(?i)Pontuação Final[:\s]*([\d.,]+)", content)
+            if match:
+                score = float(match.group(1).replace(",", "."))
+                logger.info(f"✅ Score extraído via regex: {score}")
+                return max(0.0, min(10.0, score))
+            
+            
+            match = re.search(r"[\d.,]+", content)
+            if match:
+                score = float(match.group(0).replace(",", "."))
+                logger.warning(f"⚠️ Score extraído via fallback genérico: {score}")
+                return max(0.0, min(10.0, score))
+            
+            
+            logger.error(f"❌ Falha ao extrair score. Resposta da IA: {content[:200]}")
             return 0.0

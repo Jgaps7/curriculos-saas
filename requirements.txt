@@ -11,3 +11,4 @@ openai
 PyMuPDF
 pydantic
 python-multipart
+pydantic-settings

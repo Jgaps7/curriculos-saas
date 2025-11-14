@@ -1,6 +1,7 @@
 import os
 import uuid
 import traceback
+import logging
 from redis import Redis
 from rq import Queue
 from sqlalchemy.orm import Session
@@ -9,6 +10,9 @@ from backend.database.connection import SessionLocal
 from backend.database.models import Resume, Job, Analysis
 from backend.services.pdf_service import read_pdf_bytes
 from backend.services.ai_service import OpenAIClient
+from backend.config import settings
+
+logger = logging.getLogger(__name__)
 
 ai = OpenAIClient()
 
@@ -24,7 +28,7 @@ def get_db():
         db.commit()
     except Exception as e:
         db.rollback()
-        print(f"[DB ERROR] {e}")
+        logger.error(f"❌ [DB ERROR] {e}")
         traceback.print_exc()
     finally:
         db.close()
@@ -44,17 +48,21 @@ def parse_pdf_task(resume_id: str, tenant_id: str, pdf_bytes: bytes):
             .first()
         )
         if not resume:
-            print(f"[parse_pdf_task] Resume {resume_id} não encontrado para tenant {tenant_id}.")
+            logger.warning(
+                f"⚠️ [parse_pdf_task] Resume {resume_id} não encontrado "
+                f"para tenant {tenant_id}"
+            )
             return
 
         try:
             text = read_pdf_bytes(pdf_bytes)
             resume.raw_text = text
             resume.status = "parsed"
-            print(f"[parse_pdf_task] Texto extraído para {resume_id}.")
+            logger.info(f"✅ [parse_pdf_task] Texto extraído para {resume_id}")
         except Exception as e:
             resume.status = "failed"
-            print(f"[parse_pdf_task][ERROR] {e}")
+            resume.opinion = f"Erro ao extrair PDF: {str(e)}"
+            logger.error(f"❌ [parse_pdf_task] Erro ao processar {resume_id}: {e}")
             traceback.print_exc()
 
 
@@ -72,7 +80,9 @@ def analyse_resume_task(resume_id: str, tenant_id: str):
             .first()
         )
         if not resume:
-            print(f"[analyse_resume_task] Resume {resume_id} não encontrado.")
+            logger.warning(
+                f"⚠️ [analyse_resume_task] Resume {resume_id} não encontrado"
+            )
             return
 
         job = (
@@ -81,14 +91,28 @@ def analyse_resume_task(resume_id: str, tenant_id: str):
             .first()
         )
         if not job:
-            print(f"[analyse_resume_task] Job {resume.job_id} não encontrado para tenant {tenant_id}.")
+            logger.warning(
+                f"⚠️ [analyse_resume_task] Job {resume.job_id} não encontrado "
+                f"para tenant {tenant_id}"
+            )
             return
 
         try:
             text = resume.raw_text or ""
+             # Prepara dados da vaga para a IA
+            job_data = {
+                "main_activities": job.main_activities or "",
+                "prerequisites": job.prerequisites or "",
+                "differentials": job.differentials or "",
+                "criteria": job.criteria or []
+            }
+            
+            # 3️⃣ Chama OpenAI para análise
+            logger.info(f"🤖 [analyse_resume_task] Iniciando análise IA para {resume_id}")
+
             summary = ai.resume_cv(text)
-            opinion = ai.generate_opinion(text, job.__dict__)
-            score = ai.generate_score(text, job.__dict__)
+            opinion = ai.generate_opinion(text, job_data)
+            score = ai.generate_score(text, job_data)
 
             resume.summary = summary
             resume.opinion = opinion
@@ -108,10 +132,14 @@ def analyse_resume_task(resume_id: str, tenant_id: str):
                 score=score,
             )
             db.add(analysis)
-            print(f"[analyse_resume_task] Análise concluída para {resume_id}.")
+            logger.info(
+                f"✅ [analyse_resume_task] Análise concluída para {resume_id} "
+                f"(score={score:.2f})"
+            )
         except Exception as e:
             resume.status = "failed"
-            print(f"[analyse_resume_task][ERROR] {e}")
+            resume.opinion = f"Erro na análise: {str(e)}"
+            logger.error(f"❌ [analyse_resume_task] Erro ao analisar {resume_id}: {e}")
             traceback.print_exc()
 
 
@@ -131,7 +159,10 @@ def enqueue_analysis(job_id: str, tenant_id: str, pdf_bytes: bytes) -> str:
             status="queued",
         )
         db.add(resume)
-        print(f"[enqueue_analysis] Novo resume criado: {resume_id} (tenant={tenant_id})")
+        logger.info(
+            f"📝 [enqueue_analysis] Resume criado: {resume_id} "
+            f"(tenant={tenant_id}, job={job_id})"
+        )
 
     redis_conn = Redis.from_url(os.getenv("REDIS_URL"))
     q = Queue("default", connection=redis_conn)
@@ -140,5 +171,5 @@ def enqueue_analysis(job_id: str, tenant_id: str, pdf_bytes: bytes) -> str:
     q.enqueue(parse_pdf_task, resume_id, tenant_id, pdf_bytes)
     q.enqueue(analyse_resume_task, resume_id, tenant_id)
 
-    print(f"[enqueue_analysis] Tarefas enfileiradas para {resume_id}.")
+    logger.info(f"✅ [enqueue_analysis] Tarefas enfileiradas para {resume_id}")
     return resume_id
