@@ -4,9 +4,9 @@ from datetime import datetime
 
 
 class CriteriaItem(BaseModel):
-    criterio: str
-    peso: float
-    descricao: Optional[str] = None
+    name: str
+    weight: float
+    description: Optional[str] = None
 
 
 class ResumeBase(BaseModel):

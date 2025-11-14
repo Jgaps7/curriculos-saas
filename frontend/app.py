@@ -74,7 +74,6 @@ st.title("🧠 Currículos SaaS – Painel")
 def load_jobs():
     if not st.session_state.jobs_cache:
         data = api_get("/jobs")
-        # backend retorna {"tenant_id": ..., "jobs": [...]}
         st.session_state.jobs_cache = data.get("jobs", data)  # fallback se sua rota retornar a lista pura
     return st.session_state.jobs_cache
 
@@ -169,27 +168,28 @@ with tabs[1]:
             )
             ds = st.text_area(f"Descrição {i+1}", key=f"crit_ds_{i}")
             if nm:
-                crits_preview.append({"criterio": nm, "peso": pw, "descricao": ds})
-        total_preview = sum(int(c["peso"]) for c in crits_preview)
+                crits_preview.append({"name": nm, "weight": pw, "description": ds})
+        total_preview = sum(int(c["weight"]) for c in crits_preview)
         st.caption(f"Soma (pré-visualização): {total_preview}%")
         submitted = st.form_submit_button("Salvar vaga")
+    if submitted:
 
-    crits = []
-    num_criterios = int(st.session_state.get("num_criterios", 0))
+        crits = []
+        num_criterios = int(st.session_state.get("num_criterios", 0))
 
-    for i in range(num_criterios):
-            nm = st.session_state.get(f"crit_nm_{i}", "").strip()
-            pw = st.session_state.get(f"crit_pw_{i}", 0)
-            ds = st.session_state.get(f"crit_ds_{i}", "")
+        for i in range(num_criterios):
+                nm = st.session_state.get(f"crit_nm_{i}", "").strip()
+                pw = st.session_state.get(f"crit_pw_{i}", 0)
+                ds = st.session_state.get(f"crit_ds_{i}", "")
 
-            if nm:
-                crits.append({
-                    "criterio": nm,
-                    "peso": int(pw),
-                    "descricao": ds
-                })
+                if nm:
+                    crits.append({
+                        "name": nm,
+                        "weight": int(pw),
+                        "description": ds
+                    })
 
-    total = sum(c["peso"] for c in crits)
+        total = sum(c["peso"] for c in crits)
 
     if not name:
             st.error("❌ O nome da vaga é obrigatório.")
