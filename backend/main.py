@@ -14,7 +14,7 @@ logging.basicConfig(
 )
 
 # Importa rotas
-from .routes import jobs, resumes
+from .routes import jobs, resumes, analysis, auth
 
 # Inicializa app FastAPI
 app = FastAPI(
@@ -36,6 +36,7 @@ app.add_middleware(
 app.include_router(jobs.router)
 app.include_router(resumes.router)
 app.include_router(analysis.router)
+app.include_router(auth.router)
 
 # Healthcheck
 @app.get("/")
