@@ -3,7 +3,7 @@ from dotenv import load_dotenv
 from pydantic import Field, ValidationError
 from pydantic_settings import BaseSettings
 
-# Carrega o arquivo .env da raiz do projeto
+# Carrega o arquivo .env da raiz do projeto (se existir; no Render, usa env vars diretamente)
 load_dotenv(dotenv_path=os.path.join(os.path.dirname(__file__), "..", ".env"))
 
 class Settings(BaseSettings):
@@ -15,10 +15,16 @@ class Settings(BaseSettings):
         description="Chave pública do Supabase (anon key)"
     )
     
-    # ✅ ADICIONE: Chave de serviço (para operações backend)
+    # Chave de serviço (para operações backend com bypass RLS)
     SUPABASE_SERVICE_KEY: str = Field(
         ..., 
         description="Chave privada do Supabase (service_role) - NUNCA exponha!"
+    )
+    
+    # ✅ ADICIONADO PARA auth.py: Secret para verificação JWT HS256 (pegue em Supabase > Auth > JWT Settings)
+    SUPABASE_JWT_SECRET: str = Field(
+        ..., 
+        description="JWT Secret do Supabase para fallback HS256 - NUNCA exponha!"
     )
     
     SUPABASE_DB_URL: str = Field(..., description="Connection string PostgreSQL")
@@ -35,7 +41,7 @@ class Settings(BaseSettings):
 
     # ========== REDIS (Filas Assíncronas) ==========
     REDIS_URL: str = Field(
-        default="redis://localhost:6379",  # ✅ ADICIONADO: valor padrão para dev local
+        default="redis://localhost:6379",  
         description="URL de conexão do Redis para RQ worker"
     )
 
@@ -54,11 +60,11 @@ class Settings(BaseSettings):
     # ========================================
 
     model_config = {
-    "env_file": ".env",
-    "case_sensitive": True,
-    "extra": "ignore",
-    "env_file_encoding": "utf-8"
-}
+        "env_file": ".env",
+        "case_sensitive": True,
+        "extra": "ignore",
+        "env_file_encoding": "utf-8"
+    }
 
 # Instância global das configurações
 def load_settings() -> Settings:
@@ -106,9 +112,7 @@ def load_settings() -> Settings:
         print("\n⚠️  Corrija o arquivo .env e reinicie o servidor.")
         print("="*60 + "\n")
         
-        # ✅ MELHORIA: Retorna código de erro específico
         raise SystemExit(1)
-
 
 # ========================================
 # 🌐 INSTÂNCIA SINGLETON
@@ -116,38 +120,53 @@ def load_settings() -> Settings:
 
 settings = load_settings()
 
-print("\n" + "="*60)
-print("✅ Configurações carregadas com sucesso!")
-print("="*60)
+# ✅ Prints condicionados ao ambiente dev (evita logs sensíveis em prod)
+if settings.APP_ENV == "development":
+    print("\n" + "="*60)
+    print("✅ Configurações carregadas com sucesso!")
+    print("="*60)
     
     # Informações seguras (sem expor chaves completas)
-print(f"\n📋 Ambiente: {settings.APP_ENV}")
-print(f"📊 Log Level: {settings.LOG_LEVEL}")
-print(f"🤖 Modelo OpenAI: {settings.OPENAI_MODEL}")
+    print(f"\n📋 Ambiente: {settings.APP_ENV}")
+    print(f"📊 Log Level: {settings.LOG_LEVEL}")
+    print(f"🤖 Modelo OpenAI: {settings.OPENAI_MODEL}")
     
     # ✅ MELHORIA: Oculta partes sensíveis das credenciais
-print(f"\n🔐 Supabase URL: {settings.SUPABASE_URL}")
-print(f"🔑 Supabase Anon Key: {settings.SUPABASE_ANON_KEY[:20]}...{settings.SUPABASE_ANON_KEY[-10:]}")
-print(f"🔑 OpenAI Key: {settings.OPENAI_API_KEY[:10]}...{settings.OPENAI_API_KEY[-5:]}")
+    print(f"\n🔐 Supabase URL: {settings.SUPABASE_URL}")
+    print(f"🔑 Supabase Anon Key: {settings.SUPABASE_ANON_KEY[:20]}...{settings.SUPABASE_ANON_KEY[-10:]}")
+    print(f"🔑 Supabase Service Key: {settings.SUPABASE_SERVICE_KEY[:20]}...{settings.SUPABASE_SERVICE_KEY[-10:]}")
+    print(f"🔑 Supabase JWT Secret: {settings.SUPABASE_JWT_SECRET[:20]}...{settings.SUPABASE_JWT_SECRET[-10:]}")  # ✅ Adicionado
+    print(f"🔑 OpenAI Key: {settings.OPENAI_API_KEY[:10]}...{settings.OPENAI_API_KEY[-5:]}")
     
     # Extrai host do banco de dados sem expor senha
-try:
+    try:
         db_parts = settings.SUPABASE_DB_URL.split('@')
         if len(db_parts) > 1:
             db_host = db_parts[-1]
             print(f"🗄️  Database: {db_host}")
         else:
             print(f"🗄️  Database: {settings.SUPABASE_DB_URL}")
-except Exception:
+    except Exception:
         print("🗄️  Database: [configurado]")
     
-    # ✅ ADICIONADO: Testa conexão Redis (opcional)
-try:
+    # ✅ MELHORIA: Testa conexão Redis com melhor handling
+    try:
         from redis import Redis
         redis_conn = Redis.from_url(settings.REDIS_URL, socket_connect_timeout=2)
         redis_conn.ping()
         print(f"📦 Redis: Conectado ({settings.REDIS_URL})")
-except Exception as e:
-        print(f"📦 Redis: ⚠️  Não conectado ({settings.REDIS_URL}) - {str(e)[:50]}")
+    except Exception as e:
+        print(f"📦 Redis: ⚠️  Não conectado ({settings.REDIS_URL}) - {str(e)[:50]}...")
     
-print("="*60 + "\n")
+    # ✅ ADICIONADO: Teste básico de Supabase URL (verifica se responde)
+    try:
+        import requests
+        response = requests.head(settings.SUPABASE_URL, timeout=2)
+        if response.status_code < 400:
+            print(f"🔗 Supabase: URL acessível ({settings.SUPABASE_URL})")
+        else:
+            print(f"🔗 Supabase: ⚠️ URL retornou {response.status_code}")
+    except Exception as e:
+        print(f"🔗 Supabase: ⚠️ Não acessível ({settings.SUPABASE_URL}) - {str(e)[:50]}...")
+    
+    print("="*60 + "\n")
