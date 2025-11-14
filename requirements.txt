@@ -12,3 +12,4 @@ PyMuPDF
 pydantic
 python-multipart
 pydantic-settings
+email-validator
