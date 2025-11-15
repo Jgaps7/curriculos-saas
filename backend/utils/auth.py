@@ -4,7 +4,6 @@ from typing import Optional
 from fastapi import HTTPException, Request
 from jose import jwt, jwk  # Certifique-se de ter jose (pip install python-jose)
 import requests
-import os
 from backend.config import settings
 
 logger = logging.getLogger(__name__)
@@ -14,7 +13,7 @@ if not settings.SUPABASE_URL or not settings.SUPABASE_ANON_KEY:
     raise ValueError("SUPABASE_URL ou SUPABASE_ANON_KEY não configurados!")
 
 # Nova var: o real JWT Secret para HS256 fallback (pegue do Supabase dashboard > Auth > JWT Settings)
-SUPABASE_JWT_SECRET = settings.SUPABASE_JWT_SECRET  # Adicione isso no settings.py: os.getenv("SUPABASE_JWT_SECRET")
+SUPABASE_JWT_SECRET = settings.SUPABASE_JWT_SECRET  
 
 _jwks_cache = {"data": None, "expires_at": 0}
 
@@ -37,9 +36,9 @@ def _get_jwks() -> Optional[dict]:
             response = requests.get(
                 url,
                 timeout=10,
-                headers={"Accept": "application/json"}  # Sem apikey! É público.
+                headers={"Accept": "application/json"}  
             )
-            response.raise_for_status()  # Levanta se não 200
+            response.raise_for_status()  
             data = response.json()
             _jwks_cache = {"data": data, "expires_at": now + 300}  # Cache 5min
             logger.info(f"✅ JWKS obtido com sucesso de {url}")
@@ -48,63 +47,85 @@ def _get_jwks() -> Optional[dict]:
             logger.warning(f"⚠️ Erro ao buscar de {url}: {str(e)}")
             continue
     
-    # Sem fallback pra cache antigo aqui; melhor falhar e usar HS256
     logger.error("❌ Falha total ao obter JWKS. Verifique SUPABASE_URL e rede.")
     return None
 
 def get_current_user_claims(request: Request) -> dict:
-    auth_header = request.headers.get("Authorization", "")
+    auth_header = request.headers.get("Authorization", "") or ""
     if not auth_header.startswith("Bearer "):
         raise HTTPException(401, detail="Missing Bearer token")
     
-    token = auth_header.split(" ", 1)[1]
+    token = auth_header.split(" ", 1)[1].strip()
+    if not token:
+        raise HTTPException(401, detail="Empty Bearer token")
 
-    jwks = _get_jwks()
+    try:
+        unverified_header = jwt.get_unverified_header(token)
+    except Exception as e:
+        logger.error(f"❌ Header JWT inválido: {e}")
+        raise HTTPException(401, detail="Invalid token header")
+
+    alg: Optional[str] = unverified_header.get("alg")
+    kid: Optional[str] = unverified_header.get("kid")
+
+    if not alg:
+        raise HTTPException(401, detail="Token missing 'alg' header")
     
-    if jwks:
+    if alg.startswith(("RS", "ES", "Ed", "PS")):
+        jwks = _get_jwks()
+        if not jwks:
+            logger.error("❌ Não foi possível obter JWKS para validar token")
+            raise HTTPException(401, detail="Unable to fetch JWKS")
+        if not kid:
+            raise HTTPException(401, detail="JWT missing 'kid' header")
+        
+        key_dict = next((k for k in jwks.get("keys", []) if k.get("kid") == kid), None)
+        if not key_dict:
+            logger.error(f"❌ Chave pública não encontrada para kid={kid}")
+            raise HTTPException(401, detail="Public key not found for token")
+        key_alg = key_dict.get("alg") or alg
+
         try:
-            unverified_header = jwt.get_unverified_header(token)
-            kid = unverified_header.get("kid")
-            if not kid:
-                raise ValueError("JWT sem 'kid' header")
-            
-            signing_key_dict = next(
-                (k for k in jwks.get("keys", []) if k["kid"] == kid),
-                None
-            )
-            if not signing_key_dict:
-                raise ValueError("Chave não encontrada no JWKS")
-            
-            # Converta JWK dict para public key (fix essencial!)
-            algorithm = signing_key_dict.get("alg", "RS256")
-            if algorithm == "RS256":
-                public_key = jwk.construct(signing_key_dict).to_pem().decode('utf-8')  # Converte para PEM
-            else:
-                raise ValueError(f"Algoritmo não suportado: {algorithm}")
-            
+            public_key = jwk.construct(key_dict).to_pem().decode("utf-8")
             claims = jwt.decode(
                 token,
                 public_key,
-                algorithms=[algorithm],
-                options={"verify_aud": False}  # Adicione audience se precisar: audience="authenticated"
+                algorithms=[key_alg],
+                options={"verify_aud": False},
             )
-            logger.info(f"✅ Token validado com {algorithm}")
+            logger.info(f"✅ Token validado com algoritmo assimétrico {key_alg}")
             return claims
         except Exception as e:
-            logger.warning(f"⚠️ Falha na validação RS256: {str(e)}")
-    
-    try:
-        logger.info("🔄 Tentando validação com HS256")
-        claims = jwt.decode(
-            token,
-            SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            options={"verify_aud": False}
-        )
-        logger.info(f"✅ Token validado com HS256")
-        return claims
-    except jwt.ExpiredSignatureError:
-        raise HTTPException(401, detail="Token expired")
-    except Exception as e:
-        logger.error(f"❌ Erro ao validar token: {str(e)}")
-        raise HTTPException(401, detail=f"Invalid token: {str(e)}")
+            logger.error(f"❌ Falha ao validar token assimétrico ({key_alg}): {e}")
+            raise HTTPException(401, detail="Invalid token")
+
+    # ==================================================
+    # 3️⃣ TOKENS SIMÉTRICOS (HS256 / HS512)
+    # ==================================================
+    if alg.startswith("HS"):
+        # Permitimos HS256 + HS512 pra evitar erro de "alg not allowed"
+        allowed_algs = ["HS256", "HS512"]
+        if alg not in allowed_algs:
+            allowed_algs.insert(0, alg)  # garante que o alg do header entra
+
+        try:
+            claims = jwt.decode(
+                token,
+                SUPABASE_JWT_SECRET,
+                algorithms=list(dict.fromkeys(allowed_algs)),  # remove duplicados
+                options={"verify_aud": False},
+            )
+            logger.info(f"✅ Token validado com algoritmo simétrico {alg}")
+            return claims
+        except jwt.ExpiredSignatureError:
+            logger.warning("⚠️ Token expirado")
+            raise HTTPException(401, detail="Token expired")
+        except Exception as e:
+            logger.error(f"❌ Falha ao validar token HS*: {e}")
+            raise HTTPException(401, detail="Invalid token")
+
+    # ==================================================
+    # 4️⃣ ALG DESCONHECIDO
+    # ==================================================
+    logger.warning(f"Algoritmo JWT não suportado: {alg}")
+    raise HTTPException(401, detail=f"Unsupported JWT alg: {alg}")
