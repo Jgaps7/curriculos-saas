@@ -89,6 +89,17 @@ Open to remote and international opportunities.
 
 ---
 
+## Current Architecture Limitation
+
+The current deployment uses Supabase (free tier) as the database layer.
+Due to free-tier limitations, some SaaS features are restricted.
+
+This project was intentionally designed to be database-agnostic and ready
+for migration to a dedicated PostgreSQL instance for production use.
+
+---
+
 ## License
 This project is intended for educational and portfolio purposes.
+
 
