@@ -99,7 +99,17 @@ for migration to a dedicated PostgreSQL instance for production use.
 
 ---
 
+## Planned Architecture Improvements
+
+- Migration from Supabase to PostgreSQL
+- Async database access using SQLAlchemy or asyncpg
+- Improved scalability for SaaS workloads
+- Production-ready environment configuration
+
+---
+
 ## License
 This project is intended for educational and portfolio purposes.
+
 
 
