@@ -1,3 +1,5 @@
+🌎 Available in: [Português](./README.pt-BR.md)
+
 Currículos SaaS — LLM-Powered Resume Analysis Platform
 
 Currículos SaaS is a backend SaaS application designed for resume analysis, comparison, and report generation using Large Language Models (LLMs).
@@ -157,3 +159,4 @@ It communicates architectural thinking clearly
 It positions you above “tutorial-level” candidates
 
 It aligns well with international backend and SaaS roles
+
