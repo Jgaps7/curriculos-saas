@@ -1,115 +1,159 @@
-# Currículos SaaS – AI Resume Analysis Platform
+Currículos SaaS — LLM-Powered Resume Analysis Platform
 
-## Overview
-Currículos SaaS is a Python-based SaaS application designed to analyze resumes using artificial intelligence and data processing techniques.  
-The project focuses on automating the extraction of relevant information from resumes, transforming unstructured documents into structured data that can support hiring, screening, and decision-making processes.
+Currículos SaaS is a backend SaaS application designed for resume analysis, comparison, and report generation using Large Language Models (LLMs).
+The project focuses on clean architecture, scalability, and real-world SaaS constraints, rather than being a tutorial or proof-of-concept.
 
-This project simulates a real-world SaaS workflow, combining AI-driven analysis with scalable backend logic.
+Built with FastAPI, the system follows a layered architecture that separates concerns and enables maintainability, testing, and future growth.
 
----
+Tech Stack
 
-## Problem Statement
-Recruitment processes often rely on manual resume screening, which is time-consuming, inconsistent, and difficult to scale.  
-Unstructured resumes make it challenging to quickly identify relevant skills, experience, and patterns across multiple candidates.
+Backend: FastAPI (Python)
 
----
+LLM Integration: OpenAI API
 
-## Solution
-Currículos SaaS automates resume analysis by:
-- Processing resume documents
-- Extracting structured data using AI and NLP techniques
-- Organizing candidate information for easier evaluation and comparison
+Database: PostgreSQL (migration from Supabase Free Tier)
 
-The system is designed to be extensible and adaptable to different hiring workflows and business needs.
+ORM: SQLAlchemy (async) + asyncpg
 
----
+Data Validation: Pydantic
 
-## Key Features
-- AI-assisted resume analysis
-- Automated extraction of candidate information
-- Data normalization from unstructured documents
-- SaaS-oriented architecture mindset
-- Ready for API integration and workflow automation
+Deployment: Render
 
----
+Architecture Pattern: Layered Architecture (API → Service → Repository)
 
-## Technologies Used
-- **Python**
-- Natural Language Processing (NLP)
-- Data processing and automation
-- AI-assisted analysis
-- SaaS-oriented backend structure
+System Architecture
 
----
+The system is designed using a layered backend architecture, clearly separating responsibilities between request handling, business logic, and persistence.
 
-## Project Structure
-curriculos-saas/
-├── app/
-├── services/
-├── utils/
-├── data/
-├── requirements.txt
-└── README.md
+Architectural Layers
+API Layer (FastAPI)
+
+Handles HTTP requests from web or external clients
+
+Performs request validation
+
+Delegates execution to the service layer
+
+Service Layer
+
+Contains all business logic
+
+Responsible for OpenAI (LLM) integration
+
+Implements resume analysis, matching logic, and report generation
+
+Domain Layer
+
+Pydantic Schemas (DTOs) for request/response validation
+
+SQLAlchemy Models representing domain entities
+
+Ensures data consistency and structure
+
+Repository Layer
+
+Database access abstraction
+
+SQL queries using SQLAlchemy with asyncpg
+
+Enables easier database replacement and testing
+
+Database
+
+Initially implemented using Supabase (Free Tier)
+
+Planned migration to a dedicated PostgreSQL instance due to SaaS limitations
+
+Database Migration Strategy
+
+During development, limitations of the Supabase Free Tier were identified, including:
+
+Restrictions on complex queries
+
+Constraints affecting SaaS-level operations and scalability
+
+To address this, the project is architected to allow a seamless migration to PostgreSQL, without impacting higher layers of the system.
+This is achieved through strict separation between service and repository layers.
+
+Testing Strategy
+
+Unit Tests: Business logic and service validation
+
+Integration Tests: API endpoints and database interactions
+
+Architecture prepared for CI/CD integration
+
+Key Features
+
+Resume upload and analysis
+
+Resume-to-job description matching using LLMs
+
+Structured report generation
+
+Architecture prepared for PDF export
+
+SaaS-ready foundation (multi-tenant friendly)
+
+Local Setup
+# Clone the repository
+git clone https://github.com/Jgaps7/curriculos-saas.git
+cd curriculos-saas
+
+# Create virtual environment
+python -m venv venv
+source venv/bin/activate
+
+# Install dependencies
+pip install -r requirements.txt
+
+Environment Variables
+OPENAI_API_KEY=your_api_key
+DATABASE_URL=postgresql+asyncpg://user:password@host:5432/db
+
+Run the API
+uvicorn main:app --reload
 
 
-*(Structure may evolve as the project scales.)*
+Access:
 
----
+API Documentation (Swagger): http://localhost:8000/docs
 
-## Use Cases
-- Resume screening automation
-- Talent acquisition support systems
-- HR analytics platforms
-- AI-assisted hiring workflows
-- Integration with ATS or recruitment APIs
+Project Purpose
 
----
+This project was created to demonstrate:
 
-## Business Value
-- Reduces manual effort in resume screening
-- Improves consistency in candidate evaluation
-- Enables scalable recruitment processes
-- Supports data-driven hiring decisions
+Modern backend architecture with FastAPI
 
----
+Practical application of LLMs in a SaaS context
 
-## Future Improvements
-- API endpoints for external integrations
-- Scoring and ranking models for candidates
-- Dashboard for HR analytics
-- Integration with ATS platforms
-- Deployment-ready SaaS architecture
+Clean separation of concerns and scalability-oriented design
 
----
+Readiness for production, monetization, and cloud deployment
 
-## About the Author
-Developed by **Julio Alencar**, Technology & Automation Specialist focused on building scalable digital systems through process automation, system integrations, data analysis, and applied artificial intelligence.
+Author
 
-Open to remote and international opportunities.
+Julio Alencar
+Technology & Automation Specialist
+FastAPI • LLMs • APIs • SaaS Architecture
 
----
+LinkedIn: https://www.linkedin.com/in/juliioalencar/
 
-## Current Architecture Limitation
+GitHub: https://github.com/Jgaps7
 
-The current deployment uses Supabase (free tier) as the database layer.
-Due to free-tier limitations, some SaaS features are restricted.
+Project Status
 
-This project was intentionally designed to be database-agnostic and ready
-for migration to a dedicated PostgreSQL instance for production use.
+Work in progress.
+Core architecture is stable, with continuous improvements planned.
 
----
+Honest assessment
 
-## Planned Architecture Improvements
+With this README:
 
-- Migration from Supabase to PostgreSQL
-- Async database access using SQLAlchemy or asyncpg
-- Improved scalability for SaaS workloads
-- Production-ready environment configuration
+The project is interview-ready
 
----
+It communicates architectural thinking clearly
 
-## License
-This project is intended for educational and portfolio purposes.
+It positions you above “tutorial-level” candidates
 
-
-
+It aligns well with international backend and SaaS roles
